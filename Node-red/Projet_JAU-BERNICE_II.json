@@ -1,0 +1,319 @@
+[
+    {
+        "id": "a0cfe1fd8ca54bea",
+        "type": "tab",
+        "label": "Projet_JAU-BERNICE_II",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "fn_parse_tds",
+        "type": "function",
+        "z": "a0cfe1fd8ca54bea",
+        "name": "Parse TDS",
+        "func": "// 1) Décodage Base64 → Buffer\nlet buffer = Buffer.from(msg.payload.frmPayload, 'base64');\n\n// 2) Conversion Buffer → texte\nlet text = buffer.toString('utf8').trim();\n\n// Exemple attendu : \"TDS,0.0,1\"\nlet parts = text.split(\",\");\n\n// Vérification\nif (parts.length < 3) {\n    node.warn(\"Trame invalide : \" + text);\n    return null;\n}\n\n// 3) Extraction des valeurs\nlet tds = parseFloat(parts[1]);\nlet quality = parseInt(parts[2]);\n\n// 4) Construction du JSON final\nmsg.payload = {\n    raw: text,\n    tds: tds,\n    quality: quality\n};\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 320,
+        "wires": [
+            [
+                "dbg_parsed",
+                "fn_to_influx",
+                "ui_gauge_tds",
+                "ui_text_quality",
+                "ui_chart_tds",
+                "switch_alert"
+            ]
+        ]
+    },
+    {
+        "id": "dbg_parsed",
+        "type": "debug",
+        "z": "a0cfe1fd8ca54bea",
+        "name": "Debug JSON",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "x": 810,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "fn_to_influx",
+        "type": "function",
+        "z": "a0cfe1fd8ca54bea",
+        "name": "Format InfluxDB",
+        "func": "msg.payload = {\n    tds: msg.payload.tds,\n    quality: msg.payload.quality\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 500,
+        "y": 420,
+        "wires": [
+            [
+                "influx_out"
+            ]
+        ]
+    },
+    {
+        "id": "influx_out",
+        "type": "influxdb out",
+        "z": "a0cfe1fd8ca54bea",
+        "influxdb": "496df3931571ceaf",
+        "name": "InfluxDB - water_quality",
+        "measurement": "tds",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "water_quality",
+        "retentionPolicyV18Flux": "",
+        "org": "Beach_organization",
+        "bucket": "Beach",
+        "x": 750,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "ui_gauge_tds",
+        "type": "ui_gauge",
+        "z": "a0cfe1fd8ca54bea",
+        "d": true,
+        "name": "TDS Gauge",
+        "group": "ea3829cfb0b56cd6",
+        "order": 1,
+        "width": "",
+        "height": "",
+        "gtype": "gage",
+        "title": "",
+        "label": "TDS (ppm)",
+        "format": "{{msg.payload.tds}}",
+        "min": 0,
+        "max": 1000,
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 730,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "ui_text_quality",
+        "type": "ui_text",
+        "z": "a0cfe1fd8ca54bea",
+        "d": true,
+        "group": "ea3829cfb0b56cd6",
+        "order": 2,
+        "label": "Qualité de l'eau",
+        "format": "{{msg.payload.quality}}",
+        "x": 740,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "ui_chart_tds",
+        "type": "ui_chart",
+        "z": "a0cfe1fd8ca54bea",
+        "d": true,
+        "name": "Historique TDS",
+        "group": "ea3829cfb0b56cd6",
+        "order": 3,
+        "width": "",
+        "height": "",
+        "label": "TDS (historique)",
+        "chartType": "line",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "1000",
+        "removeOlder": "1",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": "",
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#000000"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 760,
+        "y": 500,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "switch_alert",
+        "type": "switch",
+        "z": "a0cfe1fd8ca54bea",
+        "d": true,
+        "name": "Alerte si TDS > 600",
+        "property": "payload.tds",
+        "rules": [
+            {
+                "t": "gt",
+                "v": "600"
+            }
+        ],
+        "checkall": "true",
+        "outputs": 1,
+        "x": 490,
+        "y": 540,
+        "wires": [
+            [
+                "alert_msg"
+            ]
+        ]
+    },
+    {
+        "id": "alert_msg",
+        "type": "debug",
+        "z": "a0cfe1fd8ca54bea",
+        "d": true,
+        "name": "ALERTE TDS ÉLEVÉ",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 760,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "d53db801526f6ddf",
+        "type": "mqtt in",
+        "z": "a0cfe1fd8ca54bea",
+        "name": "",
+        "topic": "cma/echo/119e07/uplink",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "f20a7089749403f9",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 170,
+        "y": 380,
+        "wires": [
+            [
+                "fn_parse_tds",
+                "c3d1ce844fec9a96"
+            ]
+        ]
+    },
+    {
+        "id": "c3d1ce844fec9a96",
+        "type": "debug",
+        "z": "a0cfe1fd8ca54bea",
+        "name": "debug 6",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 380,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "496df3931571ceaf",
+        "type": "influxdb",
+        "hostname": "127.0.0.1",
+        "port": "8086",
+        "protocol": "http",
+        "database": "water_quality",
+        "name": "InfluxDB Local",
+        "usetls": false,
+        "tls": "",
+        "influxdbVersion": "2.0",
+        "url": "http://127.0.0.1:8086",
+        "timeout": "",
+        "rejectUnauthorized": false
+    },
+    {
+        "id": "ea3829cfb0b56cd6",
+        "type": "ui_group",
+        "name": "TDS",
+        "tab": "b136f362099890cf",
+        "order": 1,
+        "width": "6"
+    },
+    {
+        "id": "f20a7089749403f9",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "mqtt.unica.ovh",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "b136f362099890cf",
+        "type": "ui_tab",
+        "name": "Water Quality",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "5f455f821c4e1528",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-influxdb": "0.7.0",
+            "node-red-dashboard": "3.6.5"
+        }
+    }
+]
